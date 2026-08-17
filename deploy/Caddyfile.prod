@@ -1,0 +1,33 @@
+# Caddy — production. Automatic HTTPS (Let's Encrypt) for {$THOTH_DOMAIN}.
+# Requires the THOTH_DOMAIN and ACME_EMAIL env vars (see deploy/docker-compose.prod.yml).
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$THOTH_DOMAIN} {
+	encode gzip
+
+	# External OIDC callback (e.g. /oauth2/callback) → API's internal handler.
+	handle /oauth2/callback {
+		rewrite * /api/auth/callback/google
+		reverse_proxy api:3000
+	}
+
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	handle {
+		reverse_proxy web:8080
+	}
+
+	header {
+		# HSTS (1 year, subdomains) — only meaningful over HTTPS
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+}

@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "baseUrl": "./",
+    "paths": {
+      "@thoth/shared": ["../../packages/shared/dist/index.d.ts"],
+      "@thoth/shared/node": ["../../packages/shared/dist/node/index.d.ts"]
+    }
+  },
+  "include": ["src"]
+}
