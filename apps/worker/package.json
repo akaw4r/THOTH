@@ -13,7 +13,7 @@
     "@prisma/client": "^6.8.2",
     "@thoth/shared": "*",
     "bullmq": "^5.28.1",
-    "ioredis": "^5.4.1",
+    "ioredis": "^6.0.0",
     "playwright": "1.48.2"
   },
   "devDependencies": {
