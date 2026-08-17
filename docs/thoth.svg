@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+  <!-- THOTH mascot: the ibis-headed Egyptian god of writing, holding a scribe's
+       tablet — original artwork for this project (MIT, same as the repo). -->
+  <defs>
+    <clipPath id="disc"><circle cx="120" cy="120" r="112"/></clipPath>
+  </defs>
+
+  <!-- papyrus disc -->
+  <circle cx="120" cy="120" r="112" fill="#f3ead6"/>
+  <circle cx="120" cy="120" r="112" fill="none" stroke="#0da65c" stroke-width="8"/>
+
+  <g clip-path="url(#disc)">
+    <!-- ground line -->
+    <rect x="0" y="196" width="240" height="44" fill="#e4d7b8"/>
+
+    <!-- body -->
+    <g>
+      <!-- skirt -->
+      <path d="M95 140 L145 140 L152 200 L88 200 Z" fill="#d9a441"/>
+      <path d="M95 140 L145 140 L152 200 L88 200 Z" fill="none" stroke="#14342b" stroke-width="3"/>
+      <path d="M100 148 L148 190 M96 162 L142 200 M93 178 L128 200" stroke="#14342b" stroke-width="3" fill="none"/>
+      <!-- torso -->
+      <path d="M98 96 Q120 88 142 96 L145 142 L95 142 Z" fill="#c4763b"/>
+      <path d="M98 96 Q120 88 142 96 L145 142 L95 142 Z" fill="none" stroke="#14342b" stroke-width="3"/>
+      <!-- collar -->
+      <path d="M100 96 Q120 112 140 96 Q120 124 100 96 Z" fill="#0da65c" stroke="#14342b" stroke-width="3"/>
+    </g>
+
+    <!-- tablet arm (left, holding tablet) -->
+    <g>
+      <rect x="52" y="118" width="34" height="52" rx="4" transform="rotate(-8 69 144)" fill="#e8cf9f" stroke="#14342b" stroke-width="3"/>
+      <path d="M60 128 l18 -2 M61 138 l18 -2 M62 148 l18 -2 M63 158 l12 -1" stroke="#8a6b3f" stroke-width="2.5" fill="none"/>
+      <path d="M98 108 Q76 112 70 122" stroke="#14342b" stroke-width="3" fill="none"/>
+      <path d="M98 104 Q72 108 66 120 L74 128 Q84 116 100 114 Z" fill="#c4763b" stroke="#14342b" stroke-width="3"/>
+    </g>
+
+    <!-- writing arm (right, with stylus) -->
+    <g>
+      <path d="M140 104 Q160 116 150 134 L142 130 Q146 120 134 112 Z" fill="#c4763b" stroke="#14342b" stroke-width="3"/>
+      <!-- stylus -->
+      <path d="M146 132 L96 150" stroke="#14342b" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="146" cy="132" r="5" fill="#c4763b" stroke="#14342b" stroke-width="3"/>
+    </g>
+
+    <!-- head: ibis in profile -->
+    <g>
+      <!-- headdress falling behind shoulders -->
+      <path d="M104 52 Q92 74 96 100 L118 100 L118 56 Z" fill="#14544a"/>
+      <path d="M136 52 Q148 74 144 100 L122 100 L122 56 Z" fill="#14544a"/>
+      <!-- neck -->
+      <path d="M112 74 L128 74 L130 98 L110 98 Z" fill="#2b6a5a" stroke="#14342b" stroke-width="3"/>
+      <!-- skull -->
+      <circle cx="120" cy="58" r="20" fill="#2b6a5a" stroke="#14342b" stroke-width="3"/>
+      <!-- long curved ibis beak, sweeping down-forward -->
+      <path d="M134 48 Q178 58 172 96 Q170 106 160 110 Q168 96 164 84 Q158 66 130 60 Z"
+            fill="#14342b"/>
+      <!-- eye -->
+      <circle cx="124" cy="54" r="3.5" fill="#f3ead6"/>
+      <!-- headdress stripes -->
+      <path d="M104 66 Q100 80 100 96 M140 64 Q144 80 143 96" stroke="#0da65c" stroke-width="3" fill="none"/>
+    </g>
+  </g>
+</svg>

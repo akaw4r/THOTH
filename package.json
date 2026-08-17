@@ -1,0 +1,35 @@
+{
+  "name": "thoth",
+  "version": "0.1.0",
+  "private": true,
+  "description": "THOTH — open source pentest reporting platform",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "npm@11.19.0",
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "e2e"
+  ],
+  "scripts": {
+    "build": "npm run build -w @thoth/shared && npm run build -w @thoth/api && npm run build -w @thoth/worker && npm run build -w @thoth/web",
+    "build:shared": "npm run build -w @thoth/shared",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "npm run build:shared && npm run typecheck -ws --if-present",
+    "test": "npm run test -w @thoth/shared && npm run test -w @thoth/api && npm run test -w @thoth/web",
+    "test:e2e": "npm run test:e2e -w @thoth/api",
+    "create-admin": "npm run create-admin -w @thoth/api"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.14.0",
+    "eslint": "^9.14.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "prettier": "^3.3.3",
+    "typescript": "~5.6.3",
+    "typescript-eslint": "^8.13.0"
+  },
+  "license": "MIT"
+}
