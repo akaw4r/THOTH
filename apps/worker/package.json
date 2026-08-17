@@ -10,7 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@prisma/client": "^6.8.2",
+    "@prisma/client": "^7.9.1",
     "@thoth/shared": "*",
     "bullmq": "^5.28.1",
     "ioredis": "^5.4.1",
