@@ -1,0 +1,330 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  AUTHOR
+  VIEWER
+}
+
+enum ProjectRole {
+  MANAGER
+  EDITOR
+  VIEWER
+}
+
+enum ProjectStatus {
+  PLANNED
+  IN_PROGRESS
+  REPORTING
+  COMPLETED
+  ARCHIVED
+}
+
+// Declaration order matters: Postgres orders enums by creation order,
+// so `ORDER BY severity ASC` returns CRITICAL first.
+enum Severity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFO
+}
+
+enum FindingStatus {
+  DRAFT
+  IN_REVIEW
+  FINAL
+}
+
+enum ReportStatus {
+  QUEUED
+  RENDERING
+  DONE
+  FAILED
+}
+
+/// OWASP taxonomy family (which Top 10 the category belongs to).
+enum OwaspFamily {
+  WEB
+  API
+  LLM
+}
+
+model User {
+  id                  String    @id @default(uuid()) @db.Uuid
+  email               String    @unique
+  name                String
+  /// Only local (break-glass) accounts have username/password.
+  username            String?   @unique
+  role                Role      @default(VIEWER)
+  isLocalAdmin        Boolean   @default(false)
+  passwordHash        String?
+  /// Encrypted TOTP secret (AES-256-GCM, enc:v1:... format)
+  totpSecretEnc       String?
+  mfaEnrolled         Boolean   @default(false)
+  mustChangePassword  Boolean   @default(false)
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  lastLoginAt         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  webauthnCredentials WebAuthnCredential[]
+  memberships         ProjectMember[]
+  createdProjects     Project[]            @relation("ProjectCreatedBy")
+  createdFindings     Finding[]            @relation("FindingCreatedBy")
+  createdTemplates    FindingTemplate[]    @relation("TemplateCreatedBy")
+  requestedReports    Report[]             @relation("ReportRequestedBy")
+  uploadedAttachments Attachment[]         @relation("AttachmentUploadedBy")
+}
+
+model WebAuthnCredential {
+  /// credentialID in base64url
+  id         String    @id
+  userId     String    @db.Uuid
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  publicKey  Bytes
+  counter    BigInt    @default(0)
+  transports String[]  @default([])
+  name       String    @default("Passkey")
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+
+  @@index([userId])
+}
+
+model Project {
+  id          String        @id @default(uuid()) @db.Uuid
+  name        String
+  client      String        @default("")
+  scope       String        @default("")
+  startDate   DateTime?     @db.Date
+  endDate     DateTime?     @db.Date
+  /// Date shown on the report cover (optional; defaults to the end of the period).
+  reportDate  DateTime?     @db.Date
+  /// Technical lead shown on the report cover (optional).
+  techLead    String        @default("")
+  status      ProjectStatus @default(PLANNED)
+  createdById String?       @db.Uuid
+  createdBy   User?         @relation("ProjectCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  members     ProjectMember[]
+  findings    Finding[]
+  sections    ReportSection[]
+  reports     Report[]
+  attachments Attachment[]
+}
+
+model ProjectMember {
+  projectId String      @db.Uuid
+  userId    String      @db.Uuid
+  role      ProjectRole @default(VIEWER)
+  addedAt   DateTime    @default(now())
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+  @@index([userId])
+}
+
+/// OWASP taxonomy category (each item of the Web Top 10 / API Top 10 is a
+/// row). Reference table: templates and findings point to it via FK, so the
+/// classification is always a canonical code, never free text.
+model OwaspCategory {
+  id        String      @id @default(uuid()) @db.Uuid
+  family    OwaspFamily
+  /// Canonical and stable code, e.g. "A01:2021", "API1:2023".
+  code      String      @unique
+  name      String
+  /// Display order within the family (1..10).
+  order     Int
+  createdAt DateTime    @default(now())
+
+  templates FindingTemplate[]
+  findings  Finding[]
+
+  @@index([family, order])
+}
+
+model FindingTemplate {
+  id               String   @id @default(uuid()) @db.Uuid
+  title            String
+  severity         Severity @default(INFO)
+  cvssVector       String?
+  descriptionMd    String   @default("")
+  impactMd         String   @default("")
+  recommendationMd String   @default("")
+  referencesMd     String   @default("")
+  tags             String[] @default([])
+  /// OWASP classification (optional) — FK to the reference table.
+  owaspCategoryId  String?  @db.Uuid
+  owaspCategory    OwaspCategory? @relation(fields: [owaspCategoryId], references: [id], onDelete: SetNull)
+  createdById      String?  @db.Uuid
+  createdBy        User?    @relation("TemplateCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  findings Finding[]
+
+  @@index([owaspCategoryId])
+}
+
+model Finding {
+  id               String        @id @default(uuid()) @db.Uuid
+  projectId        String        @db.Uuid
+  project          Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title            String
+  severity         Severity      @default(INFO)
+  cvssVector       String?
+  cvssScore        Float?
+  status           FindingStatus @default(DRAFT)
+  descriptionMd    String        @default("")
+  impactMd         String        @default("")
+  recommendationMd String        @default("")
+  referencesMd     String        @default("")
+  affectedAssets   String[]      @default([])
+  /// Organizational attribution of the assessed system (optional).
+  head             String        @default("")
+  tribe            String        @default("")
+  squad            String        @default("")
+  techLead         String        @default("")
+  templateId       String?       @db.Uuid
+  template         FindingTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  /// OWASP classification (optional) — FK to the reference table. Copied from
+  /// the template when created from a template; editable on the finding.
+  owaspCategoryId  String?       @db.Uuid
+  owaspCategory    OwaspCategory? @relation(fields: [owaspCategoryId], references: [id], onDelete: SetNull)
+  createdById      String?       @db.Uuid
+  createdBy        User?         @relation("FindingCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  revisions   FindingRevision[]
+  attachments Attachment[]
+
+  @@index([projectId])
+  @@index([owaspCategoryId])
+}
+
+model FindingRevision {
+  id           String   @id @default(uuid()) @db.Uuid
+  findingId    String   @db.Uuid
+  finding      Finding  @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  /// Snapshot of the state PRIOR to the edit
+  snapshot     Json
+  editedById   String?  @db.Uuid
+  editedByName String?
+  createdAt    DateTime @default(now())
+
+  @@index([findingId])
+}
+
+model ReportSection {
+  id          String   @id @default(uuid()) @db.Uuid
+  projectId   String   @db.Uuid
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  slug        String
+  order       Int      @default(0)
+  contentMd   String   @default("")
+  updatedById String?  @db.Uuid
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  revisions SectionRevision[]
+
+  @@unique([projectId, slug])
+  @@index([projectId])
+}
+
+model SectionRevision {
+  id           String        @id @default(uuid()) @db.Uuid
+  sectionId    String        @db.Uuid
+  section      ReportSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  snapshot     Json
+  editedById   String?       @db.Uuid
+  editedByName String?
+  createdAt    DateTime      @default(now())
+
+  @@index([sectionId])
+}
+
+model ReportDesign {
+  id             String   @id @default(uuid()) @db.Uuid
+  name           String   @unique
+  description    String   @default("")
+  htmlTemplate   String
+  css            String   @default("")
+  headerTemplate String   @default("")
+  footerTemplate String   @default("")
+  isDefault      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  reports Report[]
+}
+
+model Report {
+  id            String       @id @default(uuid()) @db.Uuid
+  projectId     String       @db.Uuid
+  project       Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  designId      String?      @db.Uuid
+  design        ReportDesign? @relation(fields: [designId], references: [id], onDelete: SetNull)
+  requestedById String?      @db.Uuid
+  requestedBy   User?        @relation("ReportRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
+  status        ReportStatus @default(QUEUED)
+  filename      String
+  error         String?
+  /// Encrypted PDF (AES-256-GCM, versioned binary format)
+  pdfData       Bytes?
+  createdAt     DateTime     @default(now())
+  completedAt   DateTime?
+
+  @@index([projectId])
+}
+
+model Attachment {
+  id           String   @id @default(uuid()) @db.Uuid
+  projectId    String   @db.Uuid
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  findingId    String?  @db.Uuid
+  finding      Finding? @relation(fields: [findingId], references: [id], onDelete: SetNull)
+  filename     String
+  mimeType     String
+  size         Int
+  /// Encrypted content (AES-256-GCM, versioned binary format)
+  data         Bytes
+  uploadedById String?  @db.Uuid
+  uploadedBy   User?    @relation("AttachmentUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+
+  @@index([projectId])
+  @@index([findingId])
+}
+
+/// Append-only: the application never updates or deletes records in this table.
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  actorId    String?
+  actorEmail String?
+  action     String
+  entityType String?
+  entityId   String?
+  ip         String?
+  userAgent  String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([action])
+  @@index([actorEmail])
+}

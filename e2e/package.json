@@ -1,0 +1,14 @@
+{
+  "name": "@thoth/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "description": "End-to-end tests (Playwright) — authentication flows",
+  "scripts": {
+    "test": "playwright test",
+    "install-browsers": "playwright install --with-deps chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.48.2"
+  },
+  "license": "MIT"
+}
