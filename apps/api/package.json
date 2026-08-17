@@ -29,7 +29,7 @@
     "@simplewebauthn/server": "^13.1.1",
     "@thoth/shared": "*",
     "argon2": "^0.41.1",
-    "bullmq": "^5.28.1",
+    "bullmq": "^6.1.1",
     "connect-redis": "^7.1.1",
     "express-session": "^1.18.1",
     "google-auth-library": "^9.15.1",
