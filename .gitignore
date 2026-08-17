@@ -1,0 +1,46 @@
+# deps
+node_modules/
+
+# builds
+dist/
+build/
+*.tsbuildinfo
+apps/web/dist/
+
+# env & secrets
+.env
+.env.*
+!.env.example
+
+# logs
+*.log
+npm-debug.log*
+
+# test output
+coverage/
+playwright-report/
+test-results/
+
+# prisma
+apps/api/prisma/*.db
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# backups
+backups/
+
+# local keys and certificates (never commit)
+*.pem
+*.key
+*.p12
+*.pfx
+
+# registry/CLI credentials
+.npmrc
+
+# local working files (handoffs, drafts) — not part of the application
+temp/

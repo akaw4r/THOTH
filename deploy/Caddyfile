@@ -1,0 +1,32 @@
+# Caddy — dev/local (HTTP on the container's port 80, published as HTTP_PORT on the host).
+# Routes /api → api:3000 and everything else → web:8080 (SPA).
+# No network_mode: host — resolves services by name on the compose network.
+
+:80 {
+	encode gzip
+
+	# External OIDC callback (redirect URI registered in Google, e.g. /oauth2/callback)
+	# forwarded to the API's internal handler. Keeps the query string (?code=&state=).
+	handle /oauth2/callback {
+		rewrite * /api/auth/callback/google
+		reverse_proxy api:3000
+	}
+
+	# Backend API
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	# SPA (React) served by the web service's nginx
+	handle {
+		reverse_proxy web:8080
+	}
+
+	# Basic security headers at the edge as well
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+}

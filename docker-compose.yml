@@ -1,0 +1,130 @@
+name: thoth
+
+# Dev/local: `docker compose up` brings everything up at http://localhost:8080
+# Production (TLS + domain): also use deploy/docker-compose.prod.yml (see README)
+# We never use network_mode: host — services talk by name on the default network.
+
+# Secrets (SESSION_SECRET, ENCRYPTION_KEY, POSTGRES_PASSWORD) have NO default
+# value: they must come from the shell environment. Without them, compose fails
+# with a clear message (no secrets hardcoded in the file). Generate them with:
+#   ./install.sh                            # interactive wizard (recommended)
+#   source deploy/gen-secrets.sh            # or generate manually in your shell
+x-app-env: &app-env
+  NODE_ENV: ${NODE_ENV:-development}
+  BASE_URL: ${BASE_URL:-http://localhost:8080}
+  DATABASE_URL: 'postgresql://${POSTGRES_USER:-thoth}:${POSTGRES_PASSWORD:?export POSTGRES_PASSWORD in your shell - run ./install.sh}@db:5432/${POSTGRES_DB:-thoth}'
+  REDIS_URL: redis://redis:6379
+  SESSION_SECRET: '${SESSION_SECRET:?export SESSION_SECRET in your shell - run ./install.sh}'
+  ENCRYPTION_KEY: '${ENCRYPTION_KEY:?export ENCRYPTION_KEY in your shell - run ./install.sh}'
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  OIDC_REDIRECT_PATH: ${OIDC_REDIRECT_PATH:-/api/auth/callback/google}
+  ALLOWED_EMAIL_DOMAINS: ${ALLOWED_EMAIL_DOMAINS:-example.com}
+  ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+  DEFAULT_USER_ROLE: ${DEFAULT_USER_ROLE:-VIEWER}
+  # Google group restriction (optional). Empty = no group restriction.
+  GOOGLE_ALLOWED_GROUPS: ${GOOGLE_ALLOWED_GROUPS:-}
+  GOOGLE_WORKSPACE_SA_JSON: ${GOOGLE_WORKSPACE_SA_JSON:-}
+  GOOGLE_WORKSPACE_ADMIN_SUBJECT: ${GOOGLE_WORKSPACE_ADMIN_SUBJECT:-}
+  LOCAL_ADMIN_ENABLED: ${LOCAL_ADMIN_ENABLED:-true}
+  LOCAL_ADMIN_INITIAL_PASSWORD: ${LOCAL_ADMIN_INITIAL_PASSWORD:-}
+  # AI assistant (optional). AI_PROVIDER: anthropic | ollama. Empty = disabled.
+  AI_PROVIDER: ${AI_PROVIDER:-}
+  AI_MODEL: ${AI_MODEL:-}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  # Host's Ollama, as seen from inside the container (extra_hosts below provides the alias on Linux)
+  OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+  SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-8}
+  SEED_DEMO: ${SEED_DEMO:-0}
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-thoth}
+      POSTGRES_PASSWORD: '${POSTGRES_PASSWORD:?export POSTGRES_PASSWORD in your shell - run ./install.sh}'
+      POSTGRES_DB: ${POSTGRES_DB:-thoth}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      <<: *app-env
+      PORT: 3000
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:3000/api/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    environment:
+      <<: *app-env
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+
+  proxy:
+    image: caddy:2-alpine
+    ports:
+      - '${HTTP_PORT:-8080}:80'
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - web
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  redis_data:
+  caddy_data:
+  caddy_config:
