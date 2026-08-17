@@ -14,7 +14,7 @@
     "@thoth/shared": "*",
     "bullmq": "^5.28.1",
     "ioredis": "^5.4.1",
-    "playwright": "1.48.2"
+    "playwright": "1.62.1"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",
