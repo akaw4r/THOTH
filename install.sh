@@ -280,7 +280,7 @@ GOOGLE_ALLOWED_GROUPS=
 GOOGLE_WORKSPACE_SA_JSON=
 GOOGLE_WORKSPACE_ADMIN_SUBJECT=
 
-# --- Local break-glass admin (/auth/local route, requires MFA) ---
+# --- Local break-glass admin. Sign-in URL: <BASE_URL>/auth/local (unadvertised) ---
 LOCAL_ADMIN_ENABLED=true
 
 # MFA: false = user may skip enrollment on first login (enroll later in
@@ -332,10 +332,21 @@ echo
 if ask_yn "Create the local admin user (break-glass) now?" "s"; then
   ask ADMIN_USERNAME "Admin username" "breakglass"
   ask ADMIN_EMAIL "Admin email" "admin@${ALLOWED_EMAIL_DOMAINS%%,*}"
+  info "You will be asked for an initial password (min 12 chars; Enter = auto-generate)."
   echo
-  $COMPOSE exec api node apps/api/dist/cli/create-admin.js --username "$ADMIN_USERNAME" --email "$ADMIN_EMAIL"
+  # A failure here (invalid input, container hiccup) must never abort the whole
+  # installer — offer a retry instead.
+  until $COMPOSE exec api node apps/api/dist/cli/create-admin.js --username "$ADMIN_USERNAME" --email "$ADMIN_EMAIL"; do
+    warn "Admin creation did not complete."
+    if ! ask_yn "Try again?" "s"; then
+      info "You can create it later with:"
+      info "  $COMPOSE exec api node apps/api/dist/cli/create-admin.js --username breakglass --email you@example.com"
+      break
+    fi
+  done
   echo
-  info "Local admin login: ${BASE_URL}/auth/local (on 1st access the system forces a password change + MFA)."
+  info "Local admin sign-in URL: ${BASE_URL}/auth/local (unadvertised route)."
+  info "On 1st access: password change required; MFA offered (mandatory if MFA_REQUIRED=true)."
 fi
 
 echo

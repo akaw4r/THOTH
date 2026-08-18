@@ -61,7 +61,18 @@ async function main(): Promise<void> {
   let generated = false;
   if (!password) {
     if (process.stdin.isTTY) {
-      password = await promptHidden('Initial local admin password: ');
+      // Re-prompts on an invalid password instead of aborting — an installer
+      // typo must not kill the whole setup flow.
+      for (;;) {
+        password = await promptHidden(
+          'Initial local admin password (min 12 chars; press Enter to auto-generate): ',
+        );
+        if (!password || password.length >= 12) break;
+        // eslint-disable-next-line no-console
+        console.error(
+          'The password must be at least 12 characters long. Try again (or press Enter to auto-generate one).',
+        );
+      }
     }
     if (!password) {
       password = randomBytes(15).toString('base64');
@@ -69,8 +80,9 @@ async function main(): Promise<void> {
     }
   }
   if (password.length < 12) {
+    // Non-interactive path (LOCAL_ADMIN_INITIAL_PASSWORD env var) stays strict.
     // eslint-disable-next-line no-console
-    console.error('The initial password must be at least 12 characters long.');
+    console.error('LOCAL_ADMIN_INITIAL_PASSWORD must be at least 12 characters long.');
     process.exit(1);
   }
 
@@ -113,9 +125,12 @@ async function main(): Promise<void> {
     console.log(`  GENERATED PASSWORD (save it now, it will not be shown again): ${password}`);
   }
   // eslint-disable-next-line no-console
-  console.log(`\nGo to the UNADVERTISED route /auth/local for the first login.`);
+  console.log(`\nLocal admin sign-in URL (unadvertised): <BASE_URL>/auth/local`);
   // eslint-disable-next-line no-console
-  console.log(`On first access you will be required to change the password and enroll MFA.\n`);
+  console.log(
+    `On first access you will be required to change the password and offered MFA enrollment\n` +
+      `(mandatory when MFA_REQUIRED=true).\n`,
+  );
 
   await prisma.$disconnect();
 }
